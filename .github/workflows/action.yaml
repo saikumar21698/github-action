@@ -5,9 +5,8 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  update-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout tool repo
         uses: actions/checkout@v3
@@ -21,7 +20,7 @@ jobs:
         id: check_changes  # Assign an ID for referencing later
 
         run: |
-          if [[ $(git log --oneline --count 1) ]]; then
+          if [[ $(git log --oneline --count -- 2) ]]; then
             echo "Changes detected."
             exit 0  # Indicate changes found
           else
