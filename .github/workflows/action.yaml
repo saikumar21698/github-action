@@ -17,11 +17,54 @@ jobs:
           path: test
           ref: "main"  # Adjust if needed
 
-      -  name: Check for changes
-         run: |
-           if [[ $(git log --oneline --count 1) ]]; then
-             echo "Changes detected, proceeding with build."
-           else
-             echo "No changes found, skipping build."
-             exit 0
-           fi
+      - name: Check for changes (existing step)
+        id: check_changes  # Assign an ID for referencing later
+
+        run: |
+          if [[ $(git log --oneline --count 1) ]]; then
+            echo "Changes detected."
+            exit 0  # Indicate changes found
+          else
+            echo "No changes found."
+            exit 1  # Indicate no changes
+          fi
+
+      - name: Update Client Certificates
+        if: steps.check_changes.outputs == 0  # Trigger only if changes detected
+
+        run: |  # Custom script using `run` instead of `sshagent
+
+          # Script logic (unchanged from previous example)
+          set -e
+          pst -I ${WORKSPACE}/pst-inventories -D ${WORKSPACE}/pst-status backbone acl > acl.list
+          pst -I ${WORKSPACE}/pst-inventories -D ${WORKSPACE}/pst-status backbone sslcerts > certs.json
+          cd test
+          prev_pr=$(gh pr list --label bot --label certificateupdate --limit 1 --json headRefName --jq '.[]|.headRefName')
+          bash ${WORKSPACE}/test/client-cert-auth/update.sh "${WORKSPACE}/acl.list" "${WORKSPACE}/certs.json"
+          if git diff --quiet ${prev_pr} -- $(git diff --name-only) ; then
+            echo "No changes in client certificates, skipping PR creation."
+            exit 2
+          else
+            git checkout -b client_cert_update_${BUILD_NUMBER}
+            git commit -a -m "File Updated"
+            git push origin client_cert_update_${BUILD_NUMBER}
+            gh pr create \
+              --title "Backend Client Cert Updates" \
+              --body "Client Certificates for Backend Services have been updated. Merge PR to update configuration for registered client services." \
+              --base main \
+              --head client_cert_update_${BUILD_NUMBER} \
+              --label bot --label certificateupdate
+            current_pr=$(gh pr list --label bot --label certificateupdate --limit 1 --json headRefName --jq '.[]|.headRefName')
+            gh pr view $current_pr
+          fi
+
+          # Update build status based on exit code
+          if (exitStatus == 2) {
+            echo "No changes in client certificates, build skipped."
+            currentBuild.result = "NOT_BUILT"
+            currentBuild.displayName = "#${BUILD_NUMBER} No Changes"
+          } else if (exitStatus == 0) {
+            currentBuild.displayName = "#${BUILD_NUMBER} Created client_cert_update_${BUILD_NUMBER}"
+          } else {
+            currentBuild.result = "FAILURE"
+          }
