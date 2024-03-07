@@ -9,8 +9,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout tool repo
+        uses: actions/checkout@v3
         with:
           # Replace with your repository URL
           repository: "git@github.com:saikumar21698/github-action.git/test"
+          path: test
           ref: "main"  # Adjust if needed
