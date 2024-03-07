@@ -16,3 +16,12 @@ jobs:
           repository: "saikumar21698/github-action"
           path: test
           ref: "main"  # Adjust if needed
+
+      -  name: Check for changes
+         run: |
+           if [[ $(git log --oneline --count 1) ]]; then
+             echo "Changes detected, proceeding with build."
+           else
+             echo "No changes found, skipping build."
+             exit 0
+           fi
