@@ -1,0 +1,16 @@
+name: My Workflow
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  checkout:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # Replace with your repository URL
+          repository: "test"
+          ref: "main"  # Adjust if needed
